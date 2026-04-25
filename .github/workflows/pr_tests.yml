@@ -1,0 +1,81 @@
+name: PR Tests
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - 'feature/**'
+
+concurrency:
+  group: pr-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+
+      - name: Pick first available iPhone simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          for runtime, devs in d['devices'].items():
+              if 'iOS' not in runtime:
+                  continue
+              for dev in devs:
+                  if dev.get('isAvailable') and 'iPhone' in dev['name']:
+                      print(dev['udid'])
+                      sys.exit(0)
+          sys.exit(1)
+          ")
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          echo "Picked simulator UDID: $UDID"
+
+      - name: Cache SPM
+        uses: actions/cache@v4
+        with:
+          path: |
+            LoopCaregiverKit/.build
+            ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Test LoopCaregiverKit (Swift Package)
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -workspace LoopCaregiver.xcworkspace \
+            -scheme LoopCaregiverKit \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath TestResults-Kit.xcresult \
+          | xcbeautify --renderer github-actions
+
+      - name: Build LoopCaregiver app
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace LoopCaregiver.xcworkspace \
+            -scheme LoopCaregiver \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO \
+          | xcbeautify --renderer github-actions
+
+      - name: Upload xcresult bundle on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults-Kit.xcresult
