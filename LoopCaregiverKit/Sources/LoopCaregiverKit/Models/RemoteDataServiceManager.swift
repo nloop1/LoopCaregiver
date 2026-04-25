@@ -24,6 +24,7 @@ public class RemoteDataServiceManager: ObservableObject {
     @Published public var currentCOB: COBStatus?
     @Published public var currentProfile: ProfileSet?
     @Published public var recentCommands: [RemoteCommand] = []
+    @Published public var lifecycleStatus: LifecycleStatus = .empty
     @Published public var updating = false
     
     private let remoteDataProvider: RemoteDataServiceProvider
@@ -82,7 +83,11 @@ public class RemoteDataServiceManager: ObservableObject {
                 group.addTask(priority: .high) {
                     try await self.updateCurrentProfileData()
                 }
-                
+
+                group.addTask(priority: .high) {
+                    try await self.updateLifecycleData()
+                }
+
                 try await group.waitForAll()
             }
         } catch {
@@ -176,6 +181,14 @@ public class RemoteDataServiceManager: ObservableObject {
         let currentProfile = try await remoteDataProvider.fetchCurrentProfile()
         if currentProfile != self.currentProfile {
             self.currentProfile = currentProfile
+        }
+    }
+
+    @MainActor
+    private func updateLifecycleData() async throws {
+        let status = try await remoteDataProvider.fetchLifecycleStatus()
+        if status != self.lifecycleStatus {
+            self.lifecycleStatus = status
         }
     }
     
