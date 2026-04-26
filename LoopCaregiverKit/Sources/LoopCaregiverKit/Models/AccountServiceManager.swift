@@ -19,10 +19,12 @@ public class AccountServiceManager: ObservableObject, AccountServiceDelegate, Ac
     @Published public var settings: CaregiverSettings
     private var accountService: AccountService
     private let remoteServicesProviderFactory: RemoteServicesProviderFactory
+    private let pendingCommandWatcher: PendingCommandWatcher?
 
-    public init(accountService: AccountService, settings: CaregiverSettings, remoteServicesProviderFactory: RemoteServicesProviderFactory? = nil) {
+    public init(accountService: AccountService, settings: CaregiverSettings, remoteServicesProviderFactory: RemoteServicesProviderFactory? = nil, pendingCommandWatcher: PendingCommandWatcher? = nil) {
         self.accountService = accountService
         self.settings = settings
+        self.pendingCommandWatcher = pendingCommandWatcher
 
         if let remoteServicesProviderFactory {
             self.remoteServicesProviderFactory = remoteServicesProviderFactory
@@ -35,10 +37,10 @@ public class AccountServiceManager: ObservableObject, AccountServiceDelegate, Ac
         refreshSync()
         accountService.delegate = self
     }
-    
+
     public func createLooperService(looper: Looper) -> LooperService {
         let remoteDataSource = remoteServicesProviderFactory(looper, settings)
-        let manager = RemoteDataServiceManager(remoteDataProvider: remoteDataSource)
+        let manager = RemoteDataServiceManager(remoteDataProvider: remoteDataSource, pendingCommandWatcher: pendingCommandWatcher)
         manager.monitorForUpdates()
         return LooperService(looper: looper,
                              remoteDataSource: manager

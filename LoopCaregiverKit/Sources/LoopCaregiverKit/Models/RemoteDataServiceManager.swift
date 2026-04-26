@@ -27,11 +27,14 @@ public class RemoteDataServiceManager: ObservableObject {
     @Published public var updating = false
     
     private let remoteDataProvider: RemoteDataServiceProvider
+    private let pendingCommandWatcher: PendingCommandWatcher?
     private var dateUpdateTimer: Timer?
     private var foregroundObserver: NSObjectProtocol?
-    
-    public init(remoteDataProvider: RemoteDataServiceProvider) {
+
+    public init(remoteDataProvider: RemoteDataServiceProvider,
+                pendingCommandWatcher: PendingCommandWatcher? = nil) {
         self.remoteDataProvider = remoteDataProvider
+        self.pendingCommandWatcher = pendingCommandWatcher
     }
     
     func monitorForUpdates(updateInterval: TimeInterval = 30.0) {
@@ -169,6 +172,7 @@ public class RemoteDataServiceManager: ObservableObject {
         if recentCommands != self.recentCommands {
             self.recentCommands = recentCommands
         }
+        pendingCommandWatcher?.evaluate(commands: recentCommands)
     }
     
     @MainActor
