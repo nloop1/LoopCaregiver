@@ -27,4 +27,5 @@ public protocol RemoteDataServiceProvider {
     func fetchCurrentProfile() async throws -> ProfileSet
     func fetchRecentCommands() async throws -> [RemoteCommand]
     func deleteAllCommands() async throws
+    func fetchLifecycleStatus() async throws -> LifecycleStatus
 }

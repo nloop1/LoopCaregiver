@@ -14,6 +14,7 @@ public class NightscoutDataSource: ObservableObject, RemoteDataServiceProvider {
     private let nightscoutUploader: NightscoutClient
     private let settings: CaregiverSettings
     private let treatmentsFetcher: NightscoutTreatmentFetcher
+    private let lifecycleFetcher: NightscoutLifecycleFetcher
 
     public init(looper: Looper, settings: CaregiverSettings) {
         self.nightscoutUploader = NightscoutClient(siteURL: looper.nightscoutCredentials.url, apiSecret: looper.nightscoutCredentials.secretKey)
@@ -24,6 +25,14 @@ public class NightscoutDataSource: ObservableObject, RemoteDataServiceProvider {
                                                             fetchLookAheadInterval: Self.fetchLookAheadInterval(),
                                                             maxFetchCount: Self.maxFetchCount()
         )
+        self.lifecycleFetcher = NightscoutLifecycleFetcher(
+            siteURL: looper.nightscoutCredentials.url,
+            apiSecret: looper.nightscoutCredentials.secretKey
+        )
+    }
+
+    public func fetchLifecycleStatus() async throws -> LifecycleStatus {
+        return try await lifecycleFetcher.fetch()
     }
 
     // MARK: RemoteDataServiceProvider

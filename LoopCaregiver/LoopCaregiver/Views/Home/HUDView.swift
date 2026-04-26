@@ -29,7 +29,7 @@ struct HUDView: View {
     }
     
     var body: some View {
-        VStack {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center) {
                 CurrentGlucoseComboView(glucoseSample: nightscoutDataSource.currentGlucoseSample, lastGlucoseChange: lastGlucoseChange, displayUnits: settings.glucosePreference.unit)
                 Spacer()
@@ -43,6 +43,7 @@ struct HUDView: View {
             }.onChange(of: hudViewModel.selectedLooper) { _ in
                 looperPopoverShowing = false
             }
+            LifecycleStatusView(status: nightscoutDataSource.lifecycleStatus)
             if let (activeOverride, status) = nightscoutDataSource.activeOverrideAndStatus() {
                 ActiveOverrideInlineView(activeOverride: activeOverride, status: status)
             }

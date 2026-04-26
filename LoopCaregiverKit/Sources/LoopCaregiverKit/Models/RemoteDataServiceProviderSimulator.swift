@@ -83,6 +83,13 @@ public class RemoteDataServiceProviderSimulator: RemoteDataServiceProvider {
     public func deleteAllCommands() async throws {
     }
 
+    public func fetchLifecycleStatus() async throws -> LifecycleStatus {
+        return LifecycleStatus(
+            latestSensorStart: Date().addingTimeInterval(-83 * 3600),
+            latestPodChange: Date().addingTimeInterval(-57 * 3600)
+        )
+    }
+
     enum RemoteDataServiceProviderSimulatorError: Error {
         case unsupported
     }
