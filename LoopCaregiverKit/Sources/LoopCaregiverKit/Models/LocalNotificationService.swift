@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import UserNotifications
 
@@ -6,7 +7,9 @@ public protocol LocalNotificationServiceProtocol: AnyObject {
     func scheduleBolusTimeoutNotification(commandId: String, amountInUnits: Double, ageSeconds: TimeInterval) async
 }
 
-public final class LocalNotificationService: LocalNotificationServiceProtocol {
+/// Conforms to `ObservableObject` so SwiftUI views can inject it via `@EnvironmentObject`.
+/// The service does not actually publish any state — the conformance is purely for DI.
+public final class LocalNotificationService: LocalNotificationServiceProtocol, ObservableObject {
 
     private let center: UNUserNotificationCenterAdapter
 
