@@ -2,11 +2,14 @@ name: Z. Verify Build (no TestFlight)
 
 run-name: Verify Build LoopCaregiver (${{ github.ref_name }})
 
-# Manual trigger only — never on push/schedule, never auto-distributes.
-# Runs the same `caregiver_build` fastlane lane the production workflow uses,
-# but does NOT run `caregiver_release` (the TestFlight upload).
-# Saves the IPA + buildlog as artifacts for inspection.
+# Triggers on push to ci/** branches (so we can verify without polluting main feature
+# branches' CI). Also manually triggerable. Runs the same `caregiver_build` fastlane
+# lane the production workflow uses, but does NOT run `caregiver_release` (the
+# TestFlight upload). Saves the IPA + buildlog as artifacts for inspection.
 on:
+  push:
+    branches:
+      - 'ci/**'
   workflow_dispatch:
 
 jobs:
