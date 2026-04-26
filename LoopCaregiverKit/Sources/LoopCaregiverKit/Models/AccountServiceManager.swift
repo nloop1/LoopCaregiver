@@ -19,7 +19,7 @@ public class AccountServiceManager: ObservableObject, AccountServiceDelegate, Ac
     @Published public var settings: CaregiverSettings
     private var accountService: AccountService
     private let remoteServicesProviderFactory: RemoteServicesProviderFactory
-    private let pendingCommandWatcher: PendingCommandWatcher?
+    public let pendingCommandWatcher: PendingCommandWatcher?
 
     public init(accountService: AccountService, settings: CaregiverSettings, remoteServicesProviderFactory: RemoteServicesProviderFactory? = nil, pendingCommandWatcher: PendingCommandWatcher? = nil) {
         self.accountService = accountService
