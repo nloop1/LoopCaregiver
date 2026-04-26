@@ -13,13 +13,19 @@ public class ServiceComposerProduction: ServiceComposer {
     public let accountServiceManager: AccountServiceManager
     public let watchService: WatchService
     public let deepLinkHandler: DeepLinkHandler
+    public let notificationService: LocalNotificationService
+    public let pendingCommandWatcher: PendingCommandWatcher
     private let defaultLog = Logger()
 
     public init() {
         defaultLog.log("Initializing ServiceComposerProduction for bundle: \(Bundle.main.bundlePath)")
         let userDefaults = Self.createUserDefaults()
         self.settings = Self.createCaregiverSettings(userDefaults: userDefaults)
-        self.accountServiceManager = Self.createAccountServiceManager(settings: settings)
+        let notificationService = LocalNotificationService()
+        self.notificationService = notificationService
+        let pendingCommandWatcher = PendingCommandWatcher(notificationService: notificationService)
+        self.pendingCommandWatcher = pendingCommandWatcher
+        self.accountServiceManager = Self.createAccountServiceManager(settings: settings, pendingCommandWatcher: pendingCommandWatcher)
         self.watchService = Self.createWatchService(accountServiceManager: accountServiceManager)
         self.deepLinkHandler = Self.createDeepLinkHandler(accountServiceManager: accountServiceManager, settings: settings, watchService: watchService)
     }
@@ -45,9 +51,9 @@ public class ServiceComposerProduction: ServiceComposer {
         }
     }
 
-    static func createAccountServiceManager(settings: CaregiverSettings) -> AccountServiceManager {
+    static func createAccountServiceManager(settings: CaregiverSettings, pendingCommandWatcher: PendingCommandWatcher) -> AccountServiceManager {
         let containerFactory = Self.createPersistentContainerFactory()
-        return AccountServiceManager(accountService: CoreDataAccountService(containerFactory: containerFactory), settings: settings)
+        return AccountServiceManager(accountService: CoreDataAccountService(containerFactory: containerFactory), settings: settings, pendingCommandWatcher: pendingCommandWatcher)
     }
 
     static func createWatchService(accountServiceManager: AccountServiceManager) -> WatchService {
