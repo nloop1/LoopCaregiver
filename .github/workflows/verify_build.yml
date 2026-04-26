@@ -22,13 +22,22 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
         with:
-          bundler-cache: true
+          token: ${{ secrets.GH_PAT }}
+          submodules: recursive
 
-      - name: Install bundler dependencies
+      # Patch Fastlane Match to not print tables (matches production workflow)
+      - name: Patch Match Tables
+        run: |
+          TABLE_PRINTER_PATH=$(ruby -e 'puts Gem::Specification.find_by_name("fastlane").gem_dir')/match/lib/match/table_printer.rb
+          if [ -f "$TABLE_PRINTER_PATH" ]; then
+            sed -i "" "/puts(Terminal::Table.new(params))/d" "$TABLE_PRINTER_PATH"
+          else
+            echo "table_printer.rb not found"
+            exit 1
+          fi
+
+      - name: Install Project Dependencies
         run: bundle install
 
       - name: Sync clock (workaround for code-sign clock skew)
