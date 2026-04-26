@@ -1,0 +1,51 @@
+name: Z. Verify Build (no TestFlight)
+
+run-name: Verify Build LoopCaregiver (${{ github.ref_name }})
+
+# Manual trigger only — never on push/schedule, never auto-distributes.
+# Runs the same `caregiver_build` fastlane lane the production workflow uses,
+# but does NOT run `caregiver_release` (the TestFlight upload).
+# Saves the IPA + buildlog as artifacts for inspection.
+on:
+  workflow_dispatch:
+
+jobs:
+  verify_build:
+    runs-on: macos-26
+    name: Build (no upload)
+    steps:
+      - name: Select Xcode version
+        run: sudo xcode-select --switch /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Install bundler dependencies
+        run: bundle install
+
+      - name: Sync clock (workaround for code-sign clock skew)
+        run: sudo sntp -sS time.windows.com
+
+      - name: Fastlane Build & Archive (no TestFlight upload)
+        run: bundle exec fastlane caregiver_build
+        env:
+          TEAMID: ${{ secrets.TEAMID }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          FASTLANE_KEY_ID: ${{ secrets.FASTLANE_KEY_ID }}
+          FASTLANE_ISSUER_ID: ${{ secrets.FASTLANE_ISSUER_ID }}
+          FASTLANE_KEY: ${{ secrets.FASTLANE_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: build-artifacts-${{ github.run_number }}
+          path: |
+            artifacts
+            buildlog
