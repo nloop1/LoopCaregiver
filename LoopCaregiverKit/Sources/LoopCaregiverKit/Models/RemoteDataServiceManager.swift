@@ -42,13 +42,8 @@ public class RemoteDataServiceManager: ObservableObject {
         Task {
             await self.updateData()
         }
-        
-        self.dateUpdateTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true, block: { [weak self] _ in
-            guard let self else { return }
-            Task {
-                await self.updateData()
-            }
-        })
+        self.baselineUpdateInterval = updateInterval
+        self.restartTimerForCurrentMode()
     }
     
     @MainActor
@@ -267,30 +262,91 @@ public class RemoteDataServiceManager: ObservableObject {
     public func checkAuth() async throws {
         try await remoteDataProvider.checkAuth()
     }
-    
+
     public func deliverCarbs(amountInGrams: Double, absorptionTime: TimeInterval, consumedDate: Date) async throws {
         try await remoteDataProvider.deliverCarbs(amountInGrams: amountInGrams, absorptionTime: absorptionTime, consumedDate: consumedDate)
+        scheduleAcceleratedRefreshes(reason: "deliverCarbs")
     }
-    
+
     public func deliverBolus(amountInUnits: Double) async throws {
         try await remoteDataProvider.deliverBolus(amountInUnits: amountInUnits)
+        scheduleAcceleratedRefreshes(reason: "deliverBolus")
     }
-    
+
     public func startOverride(overrideName: String, durationTime: TimeInterval) async throws {
         try await remoteDataProvider.startOverride(overrideName: overrideName, durationTime: durationTime)
+        scheduleAcceleratedRefreshes(reason: "startOverride")
     }
-    
+
     public func cancelOverride() async throws {
         try await remoteDataProvider.cancelOverride()
+        scheduleAcceleratedRefreshes(reason: "cancelOverride")
     }
-    
+
     public func activateAutobolus(activate: Bool) async throws {
         try await remoteDataProvider.activateAutobolus(activate: activate)
+        scheduleAcceleratedRefreshes(reason: "activateAutobolus")
     }
-    
+
     public func activateClosedLoop(activate: Bool) async throws {
         try await remoteDataProvider.activateClosedLoop(activate: activate)
+        scheduleAcceleratedRefreshes(reason: "activateClosedLoop")
     }
+
+    // MARK: - Post-action accelerated refresh
+    //
+    // After a remote command is sent, the user is waiting for confirmation. The
+    // standard 30 s polling cadence makes that feel sluggish. We schedule a few
+    // extra refresh ticks at short intervals so confirmation appears as soon as
+    // Loop has acted on the command — typically saving 0–28 s of perceived wait.
+    // We also enter a temporary "active" mode that polls every 5 s while any
+    // pending command is in flight (capped at 90 s after the last send).
+    private static let acceleratedRefreshOffsets: [TimeInterval] = [2, 8, 20, 45]
+    private static let activeModeDuration: TimeInterval = 90
+    private static let activeModeInterval: TimeInterval = 5
+    private var lastSendDate: Date?
+
+    /// Returns true when we sent a command recently and an "active" command may still be pending.
+    /// Used by `monitorForUpdates` to poll faster while the user is waiting on confirmation.
+    private var isInActiveMode: Bool {
+        guard let lastSendDate else { return false }
+        return Date().timeIntervalSince(lastSendDate) < Self.activeModeDuration
+    }
+
+    private func scheduleAcceleratedRefreshes(reason: String) {
+        lastSendDate = Date()
+        // Restart the polling timer in active mode for fast follow-up confirmation.
+        restartTimerForCurrentMode()
+        // Fire immediate one-shot refreshes at the offsets above (in addition to the timer).
+        for offset in Self.acceleratedRefreshOffsets {
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(offset * 1_000_000_000))
+                guard let self else { return }
+                await self.updateData()
+            }
+        }
+    }
+
+    /// Re-creates the polling timer with the appropriate interval for the current mode.
+    /// Called from `scheduleAcceleratedRefreshes` (entering active mode) and from the
+    /// timer callback itself (returning to normal cadence after `activeModeDuration`).
+    private func restartTimerForCurrentMode() {
+        guard let baseInterval = baselineUpdateInterval else { return }
+        let interval = isInActiveMode ? Self.activeModeInterval : baseInterval
+        dateUpdateTimer?.invalidate()
+        dateUpdateTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                await self.updateData()
+                // If active mode just ended, restart the timer at baseline cadence.
+                if !self.isInActiveMode, self.dateUpdateTimer?.timeInterval == Self.activeModeInterval {
+                    self.restartTimerForCurrentMode()
+                }
+            }
+        }
+    }
+
+    private var baselineUpdateInterval: TimeInterval?
     
     public func fetchActiveOverrideStatus() async throws -> (override: NightscoutKit.TemporaryScheduleOverride, status: NightscoutKit.OverrideStatus)? {
         let latestDeviceStatus = try await remoteDataProvider.fetchLatestDeviceStatus()
