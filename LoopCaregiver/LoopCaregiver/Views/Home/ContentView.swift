@@ -13,6 +13,7 @@ struct ContentView: View {
     var deepLinkHandler: DeepLinkHandler
     @EnvironmentObject var settings: CaregiverSettings
     @EnvironmentObject var watchService: WatchService
+    @EnvironmentObject var notificationService: LocalNotificationService
 
     @State private var deepLinkErrorShowing = false
     @State private var deepLinkErrorText: String = ""
@@ -46,5 +47,10 @@ struct ContentView: View {
             }
         }
         .background(AppExpirationAlerterRepresentable())
+        .task {
+            if settings.remoteCommands2Enabled {
+                _ = await notificationService.requestAuthorizationIfNeeded()
+            }
+        }
     }
 }

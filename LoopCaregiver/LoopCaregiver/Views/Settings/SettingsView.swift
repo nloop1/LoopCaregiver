@@ -312,7 +312,7 @@ struct SettingsView: View {
             if !looperService.remoteDataSource.recentCommands.isEmpty {
                 Section {
                     ForEach(looperService.remoteDataSource.recentCommands, id: \.id, content: { command in
-                        CommandStatusView(command: command)
+                        CommandStatusView(command: command, watcher: accountService.pendingCommandWatcher)
                     })
                 }  header: {
                     SectionHeader(label: "Recent Remote Commands")
@@ -539,10 +539,28 @@ class SettingsViewModel: ObservableObject {
 
 struct CommandStatusView: View {
     let command: RemoteCommand
+    var watcher: PendingCommandWatcher?
+    @State private var nowTick = Date()
+
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
     var body: some View {
+        let isPending: Bool = {
+            if case .pending = command.status.state { return true }
+            return false
+        }()
+        let isStale = isPending && (watcher?.staleCommandIds.contains(command.id) ?? false)
+        let ageSeconds = Int(nowTick.timeIntervalSince(command.createdDate))
+
         VStack(alignment: .leading) {
             HStack {
-                Text(command.action.actionName)
+                HStack(spacing: 4) {
+                    Text(command.action.actionName)
+                    if isStale {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                    }
+                }
                 Spacer()
                 Text(command.createdDate, style: .time)
             }
@@ -558,10 +576,11 @@ struct CommandStatusView: View {
                 Text(command.status.state.title)
                     .foregroundColor(Color.green)
             case .pending:
-                Text(command.status.state.title)
-                    .foregroundColor(Color.blue)
+                Text("\(command.status.state.title) (\(ageSeconds) s)")
+                    .foregroundColor(isStale ? Color.red : Color.blue)
             }
         }
+        .onReceive(timer) { _ in nowTick = Date() }
     }
 }
 // swiftlint:enable file_length
