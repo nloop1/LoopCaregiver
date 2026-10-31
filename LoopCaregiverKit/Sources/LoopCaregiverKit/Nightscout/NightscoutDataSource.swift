@@ -48,7 +48,7 @@ public class NightscoutDataSource: ObservableObject, RemoteDataServiceProvider {
             }
         })
         .map({ $0.toGlucoseSample() })
-        if result.count < maxFetchCount() {
+        if result.count >= maxFetchCount() {
             print("Hit max glucose count: Consider increasing")
         }
         return result

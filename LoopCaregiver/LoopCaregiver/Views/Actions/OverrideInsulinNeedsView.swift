@@ -12,6 +12,14 @@ struct OverrideInsulinNeedsView: View {
 
     private let heightToWidthRatio = 0.1
 
+    var longFillRatio: Double {
+        min(1.0, ratioComplete * 0.5)
+    }
+
+    var shortFillRatio: Double {
+        min(1.0, ratioComplete)
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack {
@@ -24,14 +32,6 @@ struct OverrideInsulinNeedsView: View {
                     Spacer(minLength: 0.0)
                 }
             }
-        }
-
-        var longFillRatio: Double {
-            min(1.0, ratioComplete * 0.5)
-        }
-
-        var shortFillRatio: Double {
-            min(1.0, ratioComplete)
         }
     }
 

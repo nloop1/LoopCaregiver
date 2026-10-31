@@ -53,12 +53,13 @@ struct CarbInputView: View {
                     .frame(maxWidth: .infinity)
                     .disabled(disableForm())
                     .padding()
-                    .confirmationDialog("Are you sure?",
-                                        isPresented: $isPresentingConfirm) {
-                        Button("Save \(carbInput)g of carbs for \(looperService.looper.name)?", role: .none) {
+                    .alert("Are you sure?", isPresented: $isPresentingConfirm) {
+                        Button("Save") {
                             deliverConfirmationButtonTapped()
                         }
                         Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Save \(carbInput)g of carbs for \(looperService.looper.name)?")
                     }
                 }
                 .disabled(submissionInProgress)
@@ -253,6 +254,7 @@ struct CarbInputView: View {
             submissionInProgress = true
             do {
                 try await deliverCarbs()
+                CaregiverAnalytics.shared.recordCarbEntrySent()
                 showSheetView = false
             } catch {
                 errorText = error.localizedDescription
